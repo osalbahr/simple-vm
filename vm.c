@@ -75,11 +75,47 @@ bool opcode_add(VM *vm, Instruction *instruction)
     return false;
 }
 
+bool opcode_sub(VM *vm, Instruction *instruction)
+{
+    uint8_t a = get_reg_val(&vm->cpu, instruction->reg0);
+    uint8_t b = get_reg_val(&vm->cpu, instruction->reg1);
+
+    switch (instruction->out) {
+        case 0b00:
+            vm->cpu.r0 = a - b;
+            return true;
+        case 0b01:
+            vm->cpu.r1 = a - b;
+            return true;
+        case 0b10:
+            vm->cpu.r2 = a - b;
+            return true;
+        case 0b11:
+            vm->cpu.r3 = a - b;
+            return true;
+    }
+
+    return false;
+}
+
+typedef bool (*opcode_t)(VM *vm, Instruction *instruction);
+
+enum Opcodes {
+    OPCODE_ADD,
+    OPCODE_SUB,
+};
+
+opcode_t opcode_functions[] = {
+    opcode_add,
+    opcode_sub,
+};
+
 bool execute(VM *vm, Program *program)
 {
     while (vm->cpu.ip < program->instructionCount) {
         Instruction instruction = program->instructions[vm->cpu.ip++];
-        opcode_add(vm, &instruction);
+        printf("opcode = %d\n", instruction.opcode);
+        opcode_functions[instruction.opcode](vm, &instruction);
         vm->cpu.ir++;
     }
 
@@ -94,17 +130,16 @@ int main()
     vm.cpu.r0 = 2;
     vm.cpu.r1 = 3;
     vm.cpu.r2 = 0;
-    vm.cpu.r3 = 0;
+    vm.cpu.r3 = 100;
 
-    Instruction instruction;
-    instruction.opcode = 0;
-    instruction.reg0 = 0b00;
-    instruction.reg1 = 0b01;
-    instruction.out = 0b10;
+    Instruction instructions[] = {
+        {OPCODE_ADD, 0b00, 0b01, 0b10}, // add r0, r1, r2
+        {OPCODE_SUB, 0b11, 0b10, 0b00}, // sub r3, r2, r0
+    };
 
     Program program;
-    program.instructionCount = 1;
-    program.instructions = &instruction;
+    program.instructionCount = sizeof(instructions) / sizeof(*instructions);
+    program.instructions = instructions;
 
     if (execute(&vm, &program)) {
         printf("r0 = %d\n", vm.cpu.r0);
